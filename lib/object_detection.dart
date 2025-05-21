@@ -88,7 +88,6 @@ class ObjectDetection {
     final List<DetectionResult> detectionResults = [];
 
     log('Outlining objects...');
-    final dataDetection = [];
     for (var i = 0; i < numberOfDetections; i++) {
       if (scores[i] > 0.6) {// แสดงเฉพาะคลาสที่มีค่า confident มากกว่า 60%
         final label = _labels![classesRaw[i].toInt()];
