@@ -8,7 +8,7 @@ class ObjectDetection {
   static const String _modelPath = 'assets/models/ssd_mobilenet.tflite';
   static const String _labelPath = 'assets/models/labelmap.txt';
 
-  Interpreter? _interpreter;
+  Interpreter? _interpreter;// using run model
   List<String>? _labels;
 
   ObjectDetection() {
@@ -21,7 +21,7 @@ class ObjectDetection {
     log('Loading interpreter options...');
     final interpreterOptions = InterpreterOptions();
 
-    // Use XNNPACK Delegate
+    // Use XNNPACK Delegate (performance)
     if (Platform.isAndroid) {
       interpreterOptions.addDelegate(XNNPackDelegate());
     }
@@ -42,7 +42,7 @@ class ObjectDetection {
     _labels = labelsRaw.split('\n');
   }
 
-  Uint8List analyseImage(String imagePath) {
+  ImageDetectionOutput analyseImage(String imagePath) {
     log('Analysing image...');
     // Reading image bytes from file
     final imageData = File(imagePath).readAsBytesSync();
@@ -57,7 +57,7 @@ class ObjectDetection {
       height: 300,
     );
 
-    // Creating matrix representation, [300, 300, 3]
+    // Creating matrix representation, [300, 300, 3] โดยดึงค่า R, G, B ออกจากแต่ละพิกเซล
     final imageMatrix = List.generate(
       imageInput.height,
       (y) => List.generate(
@@ -69,46 +69,39 @@ class ObjectDetection {
       ),
     );
 
-    final output = _runInference(imageMatrix);
+    final output = _runInference(imageMatrix);// เรียกใช้งาน model โดยส่ง input เข้า _runInference
 
     log('Processing outputs...');
-    // Location
-    final locationsRaw = output.first.first as List<List<double>>;
-    final locations = locationsRaw.map((list) {
-      return list.map((value) => (value * 300).toInt()).toList();
-    }).toList();
-    log('Locations: $locations');
+    // 1. Location
+    final locationsRaw = output[0][0] as List<List<double>>;
 
-    // Classes
-    final classesRaw = output.elementAt(1).first as List<double>;
-    final classes = classesRaw.map((value) => value.toInt()).toList();
-    log('Classes: $classes');
+    // 2. Classes (ค่าคลาสของวัตถุแต่ละชนิด)
+    final classesRaw = output[1][0] as List<double>;
 
-    // Scores
-    final scores = output.elementAt(2).first as List<double>;
-    log('Scores: $scores');
+    // 3. Scores (confident)
+    final scores = output[2][0] as List<double>;
 
-    // Number of detections
-    final numberOfDetectionsRaw = output.last.first as double;
+    // 4. Number of detections (จำนวนวัตถุที่ตรวจจับได้)
+    final numberOfDetectionsRaw = (output[3][0] as double).toInt();
     final numberOfDetections = numberOfDetectionsRaw.toInt();
-    log('Number of detections: $numberOfDetections');
-
-    log('Classifying detected objects...');
-    final List<String> classication = [];
-    for (var i = 0; i < numberOfDetections; i++) {
-      classication.add(_labels![classes[i]]);
-    }
+ 
+    final List<DetectionResult> detectionResults = [];
 
     log('Outlining objects...');
+    final dataDetection = [];
     for (var i = 0; i < numberOfDetections; i++) {
-      if (scores[i] > 0.6) {
-        // Rectangle drawing
+      if (scores[i] > 0.6) {// แสดงเฉพาะคลาสที่มีค่า confident มากกว่า 60%
+        final label = _labels![classesRaw[i].toInt()];
+        final confidence = scores[i];
+        final location = locationsRaw[i].map((v) => (v*300).toInt()).toList();
+        
+        // วาดกล่องและ label บนรูป
         img.drawRect(
           imageInput,
-          x1: locations[i][1],
-          y1: locations[i][0],
-          x2: locations[i][3],
-          y2: locations[i][2],
+          x1: location[1],
+          y1: location[0],
+          x2: location[3],
+          y2: location[2],
           color: img.ColorRgb8(255, 0, 0),
           thickness: 3,
         );
@@ -116,41 +109,66 @@ class ObjectDetection {
         // Label drawing
         img.drawString(
           imageInput,
-          '${classication[i]} ${scores[i].toStringAsFixed(3)} %',
+          '$label ${(confidence * 100).toStringAsFixed(1)} %',
           font: img.arial14,
-          x: locations[i][1] + 1,
-          y: locations[i][0] + 1,
+          x: location[1] + 1,
+          y: location[0] + 1,
           color: img.ColorRgb8(255, 0, 0),
+        );
+
+        detectionResults.add(DetectionResult(
+          label: label, 
+          confidence: confidence, 
+          box: location)
         );
       }
     }
 
     log('Done.');
 
-    return img.encodeJpg(imageInput);
+    return ImageDetectionOutput(
+      imageBytes: img.encodeJpg(imageInput), 
+      detections: detectionResults,
+    );
   }
 
-  List<List<Object>> _runInference(
-    List<List<List<num>>> imageMatrix,
-  ) {
+  List<List<Object>> _runInference(List<List<List<num>>> imageMatrix) {
     log('Running inference...');
 
     // Set input tensor [1, 300, 300, 3]
     final input = [imageMatrix];
 
-    // Set output tensor
-    // Locations: [1, 10, 4]
-    // Classes: [1, 10],
-    // Scores: [1, 10],
-    // Number of detections: [1]
-    final output = {
-      0: [List<List<num>>.filled(10, List<num>.filled(4, 0))],
-      1: [List<num>.filled(10, 0)],
-      2: [List<num>.filled(10, 0)],
-      3: [0.0],
+    final output = {// dictioinary สำหรับเก็บผลลัพธ์
+      0: [List<List<num>>.filled(10, List<num>.filled(4, 0))],// Bounding boxes (x1, y1, x2, y2)
+      1: [List<num>.filled(10, 0)],// class index
+      2: [List<num>.filled(10, 0)],// confidence 
+      3: [0.0],// จำนวนวัตถุที่ตรวจจับเจอ
     };
 
-    _interpreter!.runForMultipleInputs([input], output);
-    return output.values.toList();
+    _interpreter!.runForMultipleInputs([input], output);// run model และเก็บผลลัพธ์ใน output
+    return output.values.toList();// แปลง Map เป็น List
   }
+
+}
+
+class DetectionResult {
+  final String label;
+  final double confidence;
+  final List<int> box;// [top,left,bottom, right]
+
+  DetectionResult({
+    required this.label,
+    required this.confidence,
+    required this.box,
+  });
+}
+
+class ImageDetectionOutput {
+  final Uint8List imageBytes;
+  final List<DetectionResult> detections;
+
+  ImageDetectionOutput({
+    required this.imageBytes,
+    required this.detections,
+  });
 }
