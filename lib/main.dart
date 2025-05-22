@@ -1,4 +1,3 @@
-import 'package:ai_1/detect_img.dart';
 import 'package:ai_1/home.dart';
 import 'package:flutter/material.dart';
 
@@ -17,8 +16,7 @@ class MyApp extends StatelessWidget {
           seedColor: Colors.orange,
         ),
       ),
-      // home: const MyHome(),
-      home: DetectImg(),
+      home: const MyHome(),
     );
   }
 }

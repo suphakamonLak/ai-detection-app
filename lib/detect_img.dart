@@ -42,9 +42,9 @@ class _DetectImgState extends State<DetectImg> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-                Text("Object detection", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),),
+                Text("Object detection", style: TextStyle(fontWeight: FontWeight.bold)),
                 Container(
-                width: 100,
+                width: 80,
                 height: 100,
                 child: Image.asset('assets/img/detect.png'),
               ),
@@ -64,32 +64,24 @@ class _DetectImgState extends State<DetectImg> {
                   child: (image != null) 
                   ? Image.memory(image!) 
                   : Padding(
-                    padding: const EdgeInsets.only(top: 20, left: 30),
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color.fromARGB(255, 60, 98, 163),
-                        borderRadius: BorderRadius.circular(12)
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text("Welcome to AI Detection!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),),
-                            Text("you can select Image or Camera for Detection\nI hope you will happy...", style: TextStyle(fontSize: 16, color: Colors.white),),
-                            SizedBox(height: 20,),
-                            Row(
-                              children: [
-                                Icon(Icons.star, color: const Color.fromARGB(255, 242, 242, 126),),
-                                Icon(Icons.star, color: const Color.fromARGB(255, 242, 242, 126),),
-                                Icon(Icons.star, color: const Color.fromARGB(255, 242, 242, 126),),
-                                Icon(Icons.star, color: const Color.fromARGB(255, 242, 242, 126),),
-                                Icon(Icons.star, color: const Color.fromARGB(255, 242, 242, 126),),
-                              ],
-                            )
-                          ],
+                    padding: const EdgeInsets.all(10),
+                    child: Card(
+                      elevation: 4,
+                      child: Container(
+                        width: double.infinity,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 20),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text("Please select an image or use your camera to detect objects\nWe hope you enjoy using the app!", style: TextStyle(fontSize: 16, color: Colors.black),),
+                            ],
+                          ),
                         ),
                       ),
                     ),
